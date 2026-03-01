@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NeuroFlow AI Studio</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="background"></div>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">AI EXPERIENCE</p>
+        <h1>NeuroFlow Studio</h1>
+        <p class="subtitle">
+          Красивый интерфейс + логика размышления. Общайся с AI в вебе и в консоли.
+        </p>
+      </header>
+
+      <section class="chat-card">
+        <div id="messages" class="messages"></div>
+
+        <form id="chatForm" class="composer">
+          <textarea
+            id="userInput"
+            placeholder="Опиши задачу: сайт, код, бизнес-идея, план..."
+            required
+          ></textarea>
+          <button type="submit">Отправить</button>
+        </form>
+      </section>
+
+      <aside class="tip-card">
+        <h2>Console mode</h2>
+        <p>Запусти в терминале:</p>
+        <code>npm run cli</code>
+      </aside>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
