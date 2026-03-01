@@ -1,10 +1,53 @@
 const KEYWORD_GROUPS = {
   greeting: ["привет", "здравствуйте", "hello", "hi", "добрый"],
-  planning: ["план", "шаг", "организ", "структур", "roadmap"],
-  coding: ["код", "програм", "скрипт", "api", "функц", "алгоритм"],
+  planning: ["план", "шаг", "организ", "структур", "roadmap", "запуск"],
+  coding: ["код", "програм", "скрипт", "api", "функц", "алгоритм", "напиши"],
+  idea: ["идея", "стартап", "продукт", "бизнес", "ниш", "концепт"],
   design: ["дизайн", "интерфейс", "ui", "ux", "красив", "стиль"],
   learning: ["объяс", "научи", "как", "почему", "пример"],
   productivity: ["быстр", "эффектив", "оптим", "автомат"],
+};
+
+const SNIPPETS = {
+  javascript: {
+    trigger: ["js", "javascript", "node", "express"],
+    title: "JavaScript: минимальный HTTP API",
+    code: `import http from "node:http";
+
+const server = http.createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  res.writeHead(404);
+  res.end("Not found");
+});
+
+server.listen(3000, () => console.log("http://localhost:3000"));`,
+  },
+  python: {
+    trigger: ["python", "py", "fastapi", "flask"],
+    title: "Python: функция с CLI запуском",
+    code: `def fibonacci(n: int) -> int:
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+
+if __name__ == "__main__":
+    print(fibonacci(10))  # 55`,
+  },
+  html: {
+    trigger: ["html", "css", "вёрст", "верст"],
+    title: "HTML/CSS: карточка интерфейса",
+    code: `<section class="card">
+  <h2>AI Widget</h2>
+  <p>Умный помощник для идей и кода.</p>
+  <button>Запустить</button>
+</section>`
+  },
 };
 
 function normalize(text) {
@@ -15,7 +58,6 @@ function detectIntent(text) {
   const message = normalize(text);
   let topIntent = "general";
   let topScore = 0;
-
   const scoreMap = {};
 
   for (const [intent, keywords] of Object.entries(KEYWORD_GROUPS)) {
@@ -29,99 +71,156 @@ function detectIntent(text) {
 
   return {
     topIntent,
-    confidence: topScore === 0 ? 0.25 : Math.min(0.98, 0.45 + topScore * 0.17),
+    confidence: topScore === 0 ? 0.28 : Math.min(0.98, 0.48 + topScore * 0.16),
     scoreMap,
   };
 }
 
-function buildPlan(intent, message) {
-  const hasQuestion = message.includes("?");
+function summarizeContext(history) {
+  if (!history.length) return "нет предыдущего контекста";
 
+  const lastMessages = history.slice(-4).map((item) => `${item.role}: ${item.message}`).join(" | ");
+  return `последние реплики: ${lastMessages}`;
+}
+
+function buildPlan(intent) {
   const corePlans = {
     greeting: [
-      "Определить тон беседы и ответить дружелюбно.",
-      "Уточнить задачу пользователя, если она не сформулирована.",
-      "Предложить короткий следующий шаг.",
+      "Поддержать дружелюбный старт беседы.",
+      "Предложить доступные режимы: идеи, код, план.",
+      "Попросить конкретизировать результат.",
     ],
     planning: [
-      "Собрать цель, ограничения и желаемый результат.",
-      "Разбить задачу на этапы и зависимости.",
-      "Предложить приоритетный порядок выполнения.",
+      "Собрать цель, сроки и ограничения.",
+      "Разбить задачу на 3–7 этапов.",
+      "Дать следующий конкретный шаг на сегодня.",
     ],
     coding: [
-      "Определить стек и формат результата (CLI, web, API).",
-      "Спроектировать модули и поток данных.",
-      "Сгенерировать рабочий пример + проверку запуска.",
+      "Уточнить язык/стек и формат запуска.",
+      "Сгенерировать короткий рабочий код.",
+      "Добавить инструкции запуска и расширения.",
+    ],
+    idea: [
+      "Сформулировать 3 жизнеспособные идеи.",
+      "Дать ценность, аудиторию и монетизацию.",
+      "Предложить MVP на 1 неделю.",
     ],
     design: [
-      "Определить визуальный стиль и цветовую палитру.",
-      "Сделать интерфейс выразительным и читаемым.",
-      "Проверить адаптивность и удобство действий.",
+      "Определить визуальный стиль и структуру экрана.",
+      "Сфокусироваться на читаемости и CTA.",
+      "Проверить мобильную адаптацию.",
     ],
     learning: [
-      "Выявить текущий уровень пользователя.",
-      "Дать объяснение через простую модель.",
-      "Закрепить мини-практикой.",
+      "Объяснить через простую ментальную модель.",
+      "Показать короткий пример.",
+      "Закрепить мини-заданием.",
     ],
     productivity: [
       "Найти повторяемые действия.",
-      "Предложить автоматизацию или шаблон.",
-      "Оценить эффект и риски внедрения.",
+      "Предложить автоматизацию шаблонами.",
+      "Оценить экономию времени.",
     ],
     general: [
-      "Понять контекст и ключевую цель.",
-      "Выделить 2-3 возможных подхода.",
-      "Сформировать конкретный следующий шаг.",
+      "Выделить основную цель пользователя.",
+      "Предложить практичный формат ответа.",
+      "Дать шаг, который можно сделать сразу.",
     ],
   };
 
-  const plan = [...corePlans[intent]];
-  if (hasQuestion) {
-    plan.unshift("Определить прямой вопрос и ответить без воды.");
+  return corePlans[intent] || corePlans.general;
+}
+
+function detectSnippetRequest(message) {
+  if (!["код", "напиши", "пример", "snippet", "скрипт"].some((token) => message.includes(token))) {
+    return null;
   }
 
-  return plan;
+  for (const snippet of Object.values(SNIPPETS)) {
+    if (snippet.trigger.some((token) => message.includes(token))) {
+      return snippet;
+    }
+  }
+
+  return {
+    title: "JavaScript: универсальный пример функции",
+    code: `function chunk(array, size) {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
 }
 
-function craftReply(intent, message, confidence) {
-  const openings = {
-    greeting: "Привет! Рад помочь 🚀",
-    planning: "Отлично, давай превратим идею в чёткий план.",
-    coding: "Супер, запускаем режим разработки 👨‍💻",
-    design: "Классная цель — сделаем интерфейс визуально сильным ✨",
-    learning: "Хороший вопрос, объясню по шагам.",
-    productivity: "Сфокусируемся на скорости и результате ⚡",
-    general: "Принято. Я разберу задачу и предложу рабочий вариант.",
+console.log(chunk([1,2,3,4,5], 2)); // [[1,2],[3,4],[5]]`,
   };
+}
 
-  const actionable = {
-    greeting: "Напиши, что именно хочешь создать: сайт, бота, API или всё сразу.",
-    planning: "Сейчас могу выдать roadmap на 7 дней и разбить на ежедневные шаги.",
-    coding: "Могу сразу дать структуру проекта, команды запуска и минимальный рабочий код.",
-    design: "Предложу 2 визуальные концепции: premium glassmorphism и dark-tech neon.",
-    learning: "Если хочешь, после объяснения дам тестовый мини-челлендж.",
-    productivity: "Могу дать тебе ready-to-use шаблоны для автоматизации повторяемых задач.",
-    general: "Уточни формат результата (текст, код, архитектура), и я соберу всё в одном ответе.",
-  };
+function buildIdeaPack() {
+  return [
+    "1) AI-копилот для фрилансеров: бриф -> КП -> чеклист сдачи.",
+    "2) Микро-SaaS для Telegram-каналов: идеи контента + план постинга.",
+    "3) Локальный Dev Assistant: генерация шаблонного кода и задач по roadmap.",
+  ].join("\n");
+}
 
+function craftReply({ intent, confidence, message, contextSummary, snippet }) {
   const confidencePercent = Math.round(confidence * 100);
-  return `${openings[intent]}\n\n${actionable[intent]}\n\nУверенность в интерпретации запроса: ${confidencePercent}%.`;
+
+  const openers = {
+    greeting: "Привет! Готов включиться в работу 🚀",
+    planning: "Отлично, соберём понятный и реализуемый план.",
+    coding: "Перехожу в режим генерации кода 👨‍💻",
+    idea: "Супер, вот идеи с фокусом на реализацию.",
+    design: "Сделаем красиво и удобно для пользователя ✨",
+    learning: "Объясняю по шагам, максимально практично.",
+    productivity: "Сфокусируемся на ускорении результата ⚡",
+    general: "Принято. Дам структурированный и полезный ответ.",
+  };
+
+  const base = [
+    openers[intent] || openers.general,
+    `Контекст: ${contextSummary}.`,
+  ];
+
+  if (intent === "idea") {
+    base.push("\nИдеи для старта:\n" + buildIdeaPack());
+    base.push("\nЕсли хочешь, выберу одну идею и распишу MVP, стек и первые 10 задач.");
+  }
+
+  if (intent === "planning") {
+    base.push("\nШаблон плана: цель → MVP → разработка → тесты → релиз → итерация.");
+  }
+
+  if (snippet) {
+    base.push(`\n${snippet.title}:\n\n\`\`\`\n${snippet.code}\n\`\`\``);
+    base.push("\nМогу сразу сгенерировать следующий файл/модуль под твой кейс.");
+  }
+
+  if (intent === "general" && !snippet && message.length < 18) {
+    base.push("Уточни задачу одним предложением: что создать и в каком формате нужен результат.");
+  }
+
+  base.push(`\nУверенность интерпретации: ${confidencePercent}%.`);
+  return base.join("\n");
 }
 
-export function runAssistant(message) {
+export function runAssistant({ message, history = [] }) {
   const safeMessage = (message ?? "").trim();
 
   if (!safeMessage) {
     return {
       intent: "general",
-      confidence: 0.25,
-      reasoning: ["Ввод пустой: попросить пользователя сформулировать задачу."],
-      reply: "Пока сообщение пустое. Напиши цель, и я соберу план действий.",
+      confidence: 0.28,
+      reasoning: ["Пустой ввод: попросить пользователя сформулировать цель."],
+      reply: "Пока сообщение пустое. Напиши, что нужно: идея, план или код.",
     };
   }
 
-  const { topIntent, confidence, scoreMap } = detectIntent(safeMessage);
-  const plan = buildPlan(topIntent, normalize(safeMessage));
+  const normalized = normalize(safeMessage);
+  const { topIntent, confidence, scoreMap } = detectIntent(normalized);
+  const plan = buildPlan(topIntent);
+  const contextSummary = summarizeContext(history);
+  const snippet = detectSnippetRequest(normalized);
 
   const rankedSignals = Object.entries(scoreMap)
     .sort((a, b) => b[1] - a[1])
@@ -129,15 +228,23 @@ export function runAssistant(message) {
     .map(([intent, score]) => `${intent}:${score}`);
 
   const reasoning = [
-    `Классификация интента: ${topIntent}.`,
-    `Сигналы по ключевым словам: ${rankedSignals.join(", ")}.`,
+    `Определён интент: ${topIntent}.`,
+    `Ключевые сигналы: ${rankedSignals.join(", ")}.`,
+    `Контекст диалога: ${contextSummary}.`,
     ...plan,
+    snippet ? "Запрошен кодовый пример: добавляю рабочий сниппет." : "Кодовый сниппет не запрошен явно.",
   ];
 
   return {
     intent: topIntent,
     confidence,
     reasoning,
-    reply: craftReply(topIntent, normalize(safeMessage), confidence),
+    reply: craftReply({
+      intent: topIntent,
+      confidence,
+      message: normalized,
+      contextSummary,
+      snippet,
+    }),
   };
 }

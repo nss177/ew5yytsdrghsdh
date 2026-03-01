@@ -1,4 +1,5 @@
 import readline from "node:readline";
+import { randomUUID } from "node:crypto";
 import { runAssistant } from "./ai/engine.js";
 
 const rl = readline.createInterface({
@@ -7,8 +8,19 @@ const rl = readline.createInterface({
   prompt: "you> ",
 });
 
-console.log("🤖 AI Console Assistant");
-console.log("Напиши сообщение. Команды: /exit, /help\n");
+let history = [];
+let sessionId = randomUUID();
+
+function printHelp() {
+  console.log("Команды:");
+  console.log("  /help  - показать помощь");
+  console.log("  /reset - очистить контекст и начать новый диалог");
+  console.log("  /exit  - завершить работу\n");
+}
+
+console.log("🤖 AI Console Assistant v2");
+console.log(`Session: ${sessionId}`);
+console.log("Режимы: идеи, план, код, объяснения. Команды: /help, /reset, /exit\n");
 rl.prompt();
 
 rl.on("line", (line) => {
@@ -20,12 +32,23 @@ rl.on("line", (line) => {
   }
 
   if (text === "/help") {
-    console.log("Команды:\n  /help - показать помощь\n  /exit - завершить работу\n");
+    printHelp();
     rl.prompt();
     return;
   }
 
-  const result = runAssistant(text);
+  if (text === "/reset") {
+    history = [];
+    sessionId = randomUUID();
+    console.log(`Новая сессия: ${sessionId}\n`);
+    rl.prompt();
+    return;
+  }
+
+  const result = runAssistant({ message: text, history });
+  history.push({ role: "user", message: text });
+  history.push({ role: "assistant", message: result.reply });
+  history = history.slice(-10);
 
   console.log(`\nai> ${result.reply}`);
   console.log("\n--- Логика размышления ---");

@@ -13,17 +13,27 @@
         <p class="eyebrow">AI EXPERIENCE</p>
         <h1>NeuroFlow Studio</h1>
         <p class="subtitle">
-          Красивый интерфейс + логика размышления. Общайся с AI в вебе и в консоли.
+          Улучшенная AI-логика: память контекста, генерация идей, создание небольших кодов и планов.
         </p>
       </header>
 
       <section class="chat-card">
+        <div class="toolbar">
+          <span id="sessionInfo">Session: initializing...</span>
+          <div class="quick-actions">
+            <button data-prompt="Дай 3 идеи мини-SaaS с MVP" type="button">Идеи</button>
+            <button data-prompt="Напиши небольшой код на javascript для API" type="button">Код</button>
+            <button data-prompt="Составь план запуска проекта на 7 дней" type="button">План</button>
+            <button id="resetBtn" type="button" class="ghost">Сброс</button>
+          </div>
+        </div>
+
         <div id="messages" class="messages"></div>
 
         <form id="chatForm" class="composer">
           <textarea
             id="userInput"
-            placeholder="Опиши задачу: сайт, код, бизнес-идея, план..."
+            placeholder="Напиши задачу: идея продукта, генерация кода, roadmap, объяснение..."
             required
           ></textarea>
           <button type="submit">Отправить</button>
@@ -31,9 +41,10 @@
       </section>
 
       <aside class="tip-card">
-        <h2>Console mode</h2>
+        <h2>Console mode v2</h2>
         <p>Запусти в терминале:</p>
         <code>npm run cli</code>
+        <p class="hint">Команды: /help, /reset, /exit</p>
       </aside>
     </main>
 

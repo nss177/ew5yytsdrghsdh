@@ -1,6 +1,7 @@
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { runAssistant } from "./ai/engine.js";
 
@@ -8,6 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, "public");
 const PORT = process.env.PORT || 3000;
+
+const sessions = new Map();
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -19,6 +22,22 @@ const mimeTypes = {
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { "Content-Type": mimeTypes[".json"] });
   res.end(JSON.stringify(payload));
+}
+
+function getSession(sessionId) {
+  const id = sessionId || randomUUID();
+
+  if (!sessions.has(id)) {
+    sessions.set(id, []);
+  }
+
+  return { id, history: sessions.get(id) };
+}
+
+function appendToHistory(sessionId, role, message) {
+  const history = sessions.get(sessionId) || [];
+  history.push({ role, message });
+  sessions.set(sessionId, history.slice(-10));
 }
 
 async function serveStatic(req, res) {
@@ -55,9 +74,48 @@ const server = http.createServer(async (req, res) => {
 
     req.on("end", () => {
       try {
-        const { message } = JSON.parse(body || "{}");
-        const result = runAssistant(message);
-        sendJson(res, 200, result);
+        const { message, sessionId } = JSON.parse(body || "{}");
+        const text = String(message || "").trim();
+        const session = getSession(sessionId);
+
+        if (!text) {
+          sendJson(res, 400, { error: "Message is required", sessionId: session.id });
+          return;
+        }
+
+        appendToHistory(session.id, "user", text);
+        const result = runAssistant({ message: text, history: session.history });
+        appendToHistory(session.id, "assistant", result.reply);
+
+        sendJson(res, 200, {
+          ...result,
+          sessionId: session.id,
+        });
+      } catch {
+        sendJson(res, 400, { error: "Invalid JSON payload" });
+      }
+    });
+
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/reset") {
+    let body = "";
+
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+
+    req.on("end", () => {
+      try {
+        const parsed = JSON.parse(body || "{}");
+        const sessionId = parsed.sessionId;
+
+        if (sessionId && sessions.has(sessionId)) {
+          sessions.delete(sessionId);
+        }
+
+        sendJson(res, 200, { ok: true });
       } catch {
         sendJson(res, 400, { error: "Invalid JSON payload" });
       }
